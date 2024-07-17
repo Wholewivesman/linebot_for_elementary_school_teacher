@@ -1,0 +1,135 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Upload Questions</title>
+    <style>
+        .question {
+            border: 1px solid #ccc;
+            padding: 10px;
+            margin-bottom: 10px;
+        }
+    </style>
+</head>
+<body>
+    <h1>Upload Questions</h1>
+    <form id="questionForm">
+        <div id="questions"></div>
+        <button type="button" onclick="addQuestion()">Add Another Question</button>
+        <br><br>
+        <input type="submit" value="Upload Questions">
+    </form>
+
+    <script>
+        let questionCount = 0;
+
+        function addQuestion(questionData = null) {
+            questionCount++;
+            const questionsDiv = document.getElementById('questions');
+            const newQuestionDiv = document.createElement('div');
+            newQuestionDiv.className = 'question';
+            newQuestionDiv.innerHTML = `
+                <h3>Question <span class="questionNumber">${questionCount}</span></h3>
+                <input type="hidden" class="qid" value="${questionData ? questionData.qid : questionCount}">
+
+                <label>Question:</label>
+                <input type="text" class="questionText" maxlength="100" required value="${questionData ? questionData.question : ''}"><br>
+
+                <label>Option A:</label>
+                <input type="text" class="opA" maxlength="100" required value="${questionData ? questionData.opA : ''}"><br>
+
+                <label>Option B:</label>
+                <input type="text" class="opB" maxlength="100" required value="${questionData ? questionData.opB : ''}"><br>
+
+                <label>Option C:</label>
+                <input type="text" class="opC" maxlength="100" required value="${questionData ? questionData.opC : ''}"><br>
+
+                <label>Option D:</label>
+                <input type="text" class="opD" maxlength="100" required value="${questionData ? questionData.opD : ''}"><br>
+
+                <label>Answer:</label>
+                <input type="text" class="ans" maxlength="1" required value="${questionData ? questionData.ans : ''}"><br>
+
+                <button type="button" onclick="deleteQuestion(this)">Delete Question</button>
+            `;
+            questionsDiv.appendChild(newQuestionDiv);
+            updateQuestionNumbers();
+        }
+
+        function deleteQuestion(button) {
+            button.closest('.question').remove();
+            updateQuestionNumbers();
+        }
+
+        function updateQuestionNumbers() {
+            const questions = document.querySelectorAll('.question');
+            questions.forEach((question, index) => {
+                const newIndex = index + 1;
+                question.querySelector('.questionNumber').textContent = newIndex;
+                question.querySelector('.qid').value = newIndex;
+            });
+            questionCount = questions.length;
+        }
+
+        async function fetchQuestions() {
+            try {
+                const response = await fetch('/get_questions');
+                if (!response.ok) {
+                    throw new Error(`HTTP error! status: ${response.status}`);
+                }
+                const data = await response.json();
+                data.questions.forEach(question => addQuestion(question));
+                
+                if (data.questions.length === 0) {
+                    addQuestion();
+                }
+            } catch (error) {
+                console.error('Error fetching questions:', error);
+                addQuestion();
+            }
+        }
+
+        window.onload = fetchQuestions;
+
+        document.getElementById('questionForm').onsubmit = async function(e) {
+            e.preventDefault();
+            updateQuestionNumbers();
+
+            const questions = Array.from(document.querySelectorAll('.question')).map(q => ({
+                qid: q.querySelector('.qid').value,
+                question: q.querySelector('.questionText').value,
+                opA: q.querySelector('.opA').value,
+                opB: q.querySelector('.opB').value,
+                opC: q.querySelector('.opC').value,
+                opD: q.querySelector('.opD').value,
+                ans: q.querySelector('.ans').value
+            }));
+
+            const data = {
+                questions: questions,
+                number: questions.length
+            };
+
+            try {
+                const response = await fetch('/set_questions', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify(data)
+                });
+
+                if (!response.ok) {
+                    throw new Error(`HTTP error! status: ${response.status}`);
+                }
+                const result = await response.json();
+                alert("更新成功");
+            } catch (error) {
+                console.error('Error uploading questions:', error);
+                alert('Error uploading questions. Please try again.');
+            }
+        };
+    </script>
+</body>
+</html>
